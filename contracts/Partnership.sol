@@ -32,6 +32,7 @@ contract Partnership{
   uint public currentFeeB;
 
   bool public breachClaimed;
+  bool public dissolved; // Has the partnership been disolved? 
 
   uint public proposedOutcomeA;
   uint public proposedOutcomeB;
@@ -55,7 +56,7 @@ contract Partnership{
   }
 
   function deposit() public payable{
-    require(!breachClaimed);
+    require(!breachClaimed && !dissolved);
     if(msg.sender == partyA){
       require(msg.value == monthlyPaymentA + currentFeeA && !nextPaymentPaidA);
       amountPaidA += monthlyPaymentA;
@@ -87,7 +88,7 @@ contract Partnership{
   }
 
   function assessFees() public {
-    require(!breachClaimed);
+    require(!breachClaimed && !dissolved);
     if(now > nextPaymentDue){
       if(!nextPaymentPaidA){
         currentFeeA = (monthlyPaymentA * lateFeePercentage) / 100;
@@ -99,14 +100,14 @@ contract Partnership{
   }
 
   function claimBreach() public {
+    require(effectiveTime > 0 && !dissolved);
     require(msg.sender == partyA || msg.sender == partyB);
-    require(effectiveTime > 0);
 
     breachClaimed = true;
   }
 
   function rule(uint ruling) public{
-    require(breachClaimed && msg.sender == arbitrator);
+    require(breachClaimed && !dissolved && msg.sender == arbitrator);
     internalRule(ruling);
   }
 
@@ -121,11 +122,12 @@ contract Partnership{
     } else{
       assert(false);
     }
+    dissolved = true;
   }
 
 
   function proposeDissolution(uint outcome) public{
-    require(!breachClaimed);
+    require(!breachClaimed && !dissolved);
     if(msg.sender == partyA){
       proposedOutcomeA = outcome;
       if(proposedOutcomeA == proposedOutcomeB){
