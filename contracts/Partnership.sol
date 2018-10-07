@@ -5,34 +5,39 @@ contract Partnership{
   // payments are always made every 4 weeks.
   // Contract is initiated when both people submit the first payment.
 
-  public constant uint GRACE_PERIOD_DAYS = 7;
-  public constant uint PAYMENT_PERIOD_DAYS = 28;
+  uint public GRACE_PERIOD_DAYS = 7;
+  uint public PAYMENT_PERIOD_DAYS = 28;
 
-  public bytes32 agreementHash; 
+  bytes32 public agreementHash; 
 
-  public address partyA;
-  public address partyB;
-  public address arbitrator;
+  address public partyA;
+  address public partyB;
+  address public arbitrator;
 
-  public uint amountPaidA;
-  public uint amountPaidB;
+  uint public amountPaidA;
+  uint public amountPaidB;
 
-  public uint monthlyPaymentA;
-  public uint monthlyPaymentB;
+  uint public monthlyPaymentA;
+  uint public monthlyPaymentB;
 
-  public uint numPaymentsA;
-  public uint numPaymentsB;
+  uint public numPaymentsA;
+  uint public numPaymentsB;
 
-  public uint effectiveTime;
-  public uint lateFeePercentage;
+  uint public effectiveTime;
+  uint public lateFeePercentage;
 
-  public uint nextPaymentDue;
+  uint public nextPaymentDue;
 
-  public bool nextPaymentPaidA;
-  public bool nextPaymentPaidB;
+  bool public nextPaymentPaidA;
+  bool public nextPaymentPaidB;
 
-  public bool currentFeeA;
-  public bool currentFeeB;
+  uint public currentFeeA;
+  uint public currentFeeB;
+
+  bool public breachClaimed;
+
+  uint public proposedOutcomeA;
+  uint public proposedOutcomeB;
 
 
   constructor(
@@ -53,32 +58,87 @@ contract Partnership{
   }
 
   function deposit() public payable{
+    require(!breachClaimed);
     if(msg.sender == partyA){
       require(msg.value == monthlyPaymentA + currentFeeA && !nextPaymentPaidA);
-      amountPaidA += msg.value;
+      amountPaidA += monthlyPaymentA;
       if(currentFeeA > 0){
         partyB.transfer(currentFeeA);
       }
       currentFeeA = 0;
       nextPaymentPaidA = true;
-    } else if( msg.sender == partyB){
+    } else if(msg.sender == partyB){
       require(msg.value == monthlyPaymentB + currentFeeB && !nextPaymentPaidB);
-      amountPaidB += msg.value;
+      amountPaidB += monthlyPaymentB;
       if(currentFeeB > 0){
         partyA.transfer(currentFeeB);
       }
       currentFeeB = 0;
       nextPaymentPaidB = true;
     } 
-    if(effectiveTime == 0 && nextPaymentPaidA && nextPaymentPaidB){
-      effectiveTime = now;
-      nextPaymentDue = effectiveTime + PAYMENT_PERIOD_DAYS;
+
+    if(nextPaymentPaidA && nextPaymentPaidB){
       nextPaymentPaidA = false;
       nextPaymentPaidB = false;
-    } else if( nextPaymentPaidA && nextPaymentPaidB ){
-      nextPaymentDue = nextPaymentDue + PAYMENT_PERIOD_DAYS;
-      nextPaymentPaidA = false;
-      nextPaymentPaidB = false;
+      if(effectiveTime > 0){
+        nextPaymentDue = nextPaymentDue + PAYMENT_PERIOD_DAYS;
+      } else{
+        effectiveTime = now;
+        nextPaymentDue = effectiveTime + PAYMENT_PERIOD_DAYS;  
+      }
+    }
+  }
+
+  function assessFees() public {
+    require(!breachClaimed);
+    if(now > nextPaymentDue){
+      if(!nextPaymentPaidA){
+        currentFeeA = (monthlyPaymentA * lateFeePercentage) / 100;
+      }
+      if(!nextPaymentPaidB){
+        currentFeeB = (monthlyPaymentB * lateFeePercentage) / 100;
+      }
+    }
+  }
+
+  function claimBreach() public {
+    require(msg.sender == partyA || msg.sender == partyB);
+    require(effectiveTime > 0);
+
+    breachClaimed = true;
+  }
+
+  function rule(uint ruling) public{
+    require(breachClaimed && msg.sender == arbitrator);
+    internalRule(ruling);
+  }
+
+  function internalRule(uint ruling) internal{
+    if(ruling == 1){
+      partyA.transfer(this.balance);
+    } else if(ruling == 2){
+      partyB.transfer(this.balance);
+    } else if(ruling == 3){
+      partyA.transfer(amountPaidA);
+      partyB.transfer(amountPaidB);
+    } else{
+      throw;
+    }
+  }
+
+
+  function proposeDissolution(uint outcome) public{
+    require(!breachClaimed);
+    if(msg.sender == partyA){
+      proposedOutcomeA = outcome;
+      if(proposedOutcomeA == proposedOutcomeB){
+        internalRule(proposedOutcomeA);
+      }
+    } else if(msg.sender == partyB){
+      proposedOutcomeB = outcome;
+      if(proposedOutcomeA == proposedOutcomeB){
+        internalRule(proposedOutcomeA);
+      }
     }
   }
 }
