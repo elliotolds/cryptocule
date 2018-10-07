@@ -48,6 +48,9 @@ contract Partnership{
     } else if( msg.sender == partyB){
       amountPaidB += msg.value;
     } 
+    if(effectiveTime == 0 && amountPaidA >= monthlyPaymentA && amountPaidB >= monthlyPaymentB){
+      effectiveTime = now;
+    }
   }
 
 }
