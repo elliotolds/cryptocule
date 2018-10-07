@@ -5,8 +5,8 @@ contract Partnership{
   // payments are always made every 4 weeks.
   // Contract is initiated when both people submit the first payment.
 
-  uint public GRACE_PERIOD_DAYS = 7;
-  uint public PAYMENT_PERIOD_DAYS = 28;
+  uint public constant GRACE_PERIOD_DAYS = 7;
+  uint public constant PAYMENT_PERIOD_DAYS = 28;
 
   bytes32 public agreementHash; 
 
@@ -19,9 +19,6 @@ contract Partnership{
 
   uint public monthlyPaymentA;
   uint public monthlyPaymentB;
-
-  uint public numPaymentsA;
-  uint public numPaymentsB;
 
   uint public effectiveTime;
   uint public lateFeePercentage;
@@ -115,14 +112,14 @@ contract Partnership{
 
   function internalRule(uint ruling) internal{
     if(ruling == 1){
-      partyA.transfer(this.balance);
+      partyA.transfer(address(this).balance);
     } else if(ruling == 2){
-      partyB.transfer(this.balance);
+      partyB.transfer(address(this).balance);
     } else if(ruling == 3){
       partyA.transfer(amountPaidA);
       partyB.transfer(amountPaidB);
     } else{
-      throw;
+      assert(false);
     }
   }
 
